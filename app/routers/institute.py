@@ -1,6 +1,17 @@
 from fastapi import APIRouter, HTTPException, Form
 from app.core.utils import hash_password, verify_password
-from app.db.models import UserCreate, LoginRequest, AthleteResponse, TournamentResponse, GetEndorsementResponse, EndorsementReviewRequest, institution, tournament, endorsements, athlete
+from app.core.models import (
+    UserCreate,
+    LoginRequest,
+    AthleteResponse, 
+    TournamentResponse, 
+    GetEndorsementResponse, 
+    EndorsementReviewRequest, 
+    institution, 
+    tournament, 
+    endorsements, 
+    athlete
+)
 from sqlmodel import select
 from typing import List
 from app.routers.deps import SessionDep
@@ -202,7 +213,7 @@ def get_pending_endorsements(session: SessionDep, endorser_id: UUID = Form(...))
 )
 def review_endorsement(
     session: SessionDep,
-    request: GetEndorsementResponse = Form(...),
+    request: EndorsementReviewRequest = Form(...),
 ):
     try:
         endorsement = session.exec(select(endorsements).where(endorsements.endorsement_id == request.endorsement_id)).first()

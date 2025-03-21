@@ -1,10 +1,16 @@
 from fastapi import APIRouter, HTTPException, Form
 from app.core.utils import hash_password, verify_password
-from app.db.models import UserCreate, LoginRequest, athlete, endorsements, UpdateAthleteRequest, AthleteEndorsementRequest
+from app.core.models import (
+    UserCreate,
+    LoginRequest, 
+    athlete, 
+    endorsements,
+    UpdateAthleteRequest,
+    AthleteEndorsementRequest
+)
 from sqlmodel import select
-from typing import List
 from app.routers.deps import SessionDep
-from uuid import uuid4, UUID
+from uuid import uuid4
 
 router = APIRouter(prefix="/athlete", tags=["Athlete"])
 
@@ -85,6 +91,7 @@ def login_user(session: SessionDep, loginrequest: LoginRequest = Form(...)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error logging in: {e}")
 
+
 @router.post(
     "/updateDetails",
     summary="Update an athlete's details",
@@ -132,6 +139,7 @@ def update_athlete_details(
     except Exception as e:
         session.rollback()
         raise HTTPException(status_code=500, detail=f"Error updating athlete: {e}")
+
 
 @router.post(
     "/requestEndorsement",
