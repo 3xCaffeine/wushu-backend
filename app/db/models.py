@@ -5,6 +5,7 @@ from typing import Optional
 from uuid import UUID
 from datetime import datetime
 
+# Application Data Models
 class UserCreate(BaseModel):
     name: str
     email: str
@@ -13,6 +14,11 @@ class UserCreate(BaseModel):
 class LoginRequest(BaseModel):
     email: str
     password: str
+
+class AthleteEndorsementRequest(BaseModel):
+    athlete_id: UUID
+    institute_id: UUID 
+    tournament_id: UUID
 
 class AthleteResponse(BaseModel):
     name: str
@@ -29,11 +35,24 @@ class TournamentResponse(BaseModel):
     end_date: str
     location: str
 
-class EndorsementResponse(BaseModel):
+class GetEndorsementResponse(BaseModel):
     athlete: AthleteResponse
     tournament: TournamentResponse
 
+class EndorsementReviewRequest(BaseModel):
+    endorsement_id: UUID
+    approve: bool
 
+class UpdateAthleteRequest(BaseModel):
+    athlete_id: UUID
+    name: Optional[str] = None
+    age: Optional[int] = None
+    gender: Optional[str] = None
+    division: Optional[str] = None
+    contact: Optional[str] = None
+    password: Optional[str] = None
+
+# Database Table Models
 class endorsements(SQLModel, table=True):
     endorsement_id: UUID = Field(default_factory=UUID, primary_key=True)
     tournament_id: UUID = Field(foreign_key="tournament.tournament_id")
@@ -44,7 +63,6 @@ class endorsements(SQLModel, table=True):
 
 class athlete(SQLModel, table=True):
     athlete_id: UUID = Field(default_factory=UUID, primary_key=True)
-    endorsed: Optional[bool] = None
     name: str
     age: int
     gender: str

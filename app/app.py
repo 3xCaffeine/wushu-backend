@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import athlete, auth, institute, endorse, tournament
+from app.routers import athlete, institute, tournament
 
 def create_app() -> FastAPI:
     app = FastAPI(
@@ -26,12 +26,8 @@ def create_app() -> FastAPI:
     async def health():
         return {"health": "ok"}
 
-    app.include_router(auth.router)
-    app.include_router(athlete.router)
     app.include_router(athlete.router)
     app.include_router(institute.router)
     app.include_router(tournament.router)
-    app.include_router(endorse.router)
-
 
     return app

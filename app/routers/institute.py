@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, Form
 from app.core.utils import hash_password, verify_password
-from app.db.models import UserCreate, LoginRequest, AthleteResponse, TournamentResponse, EndorsementResponse, institution, tournament, endorsements, athlete
+from app.db.models import UserCreate, LoginRequest, AthleteResponse, TournamentResponse, GetEndorsementResponse, EndorsementReviewRequest, institution, tournament, endorsements, athlete
 from sqlmodel import select
 from typing import List
 from app.routers.deps import SessionDep
@@ -87,11 +87,49 @@ def login_user(session: SessionDep, loginrequest: LoginRequest = Form(...)):
 
 
 @router.get(
-    "/fetchEndorsements",
-    summary="Fetch pending endorsementss with athlete and tournament details",
-    response_model=List[EndorsementResponse],
+    "/searchInstitution",
+    summary="Fetch institutes against a name",
+    responses={
+        200: {
+            "description": "List of matching institutions",
+            "content": {"application/json": {"example": [
+                {
+                    "institute_id": "550e8400-e29b-41d4-a716-446655440000",
+                    "name": "Sports Academy",
+                    "contact": "9876543210"
+                }
+            ]}}
+        },
+        404: {
+            "description": "No matching institutions found",
+            "content": {"application/json": {"example": {"detail": "No institutions found matching the given name"}}},
+        },
+        500: {
+            "description": "Server error",
+            "content": {"application/json": {"example": {"detail": "Error fetching institutions: some error"}}},
+        },
+    },
 )
-def get_pending_endorsementss(session: SessionDep, endorser_id: UUID = Form(...)):
+def search_institutions(session: SessionDep, name: str = ""):
+    try:
+        stmt = select(institution).where(institution.name.ilike(f"%{name}%"))
+        institutions = session.exec(stmt).all()
+
+        if not institutions:
+            raise HTTPException(status_code=404, detail="No institutions found matching the given name")
+        
+        return [{"name": row.name, "contact": row.contact} for row in institutions]
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching institutions: {e}")
+
+
+@router.get(
+    "/getEndorsements",
+    summary="Fetch pending endorsements with athlete and tournament details",
+    response_model=List[GetEndorsementResponse],
+)
+def get_pending_endorsements(session: SessionDep, endorser_id: UUID = Form(...)):
     try:
         stmt = (
             select(
@@ -113,7 +151,7 @@ def get_pending_endorsementss(session: SessionDep, endorser_id: UUID = Form(...)
             raise HTTPException(status_code=404, detail="No pending endorsementss found")
 
         endorsements = [
-            EndorsementResponse(
+            GetEndorsementResponse(
                 endorsements_id=row.endorsements_id,
                 match_id=row.match_id,
                 athlete=AthleteResponse(
@@ -141,3 +179,49 @@ def get_pending_endorsementss(session: SessionDep, endorser_id: UUID = Form(...)
         raise HTTPException(status_code=500, detail=f"Error fetching endorsements: {e}")
 
 
+@router.post(
+    "/reviewEndorsement",
+    summary="Update a pending endorsement's review and approval status",
+    responses={
+        200: {
+            "description": "Endorsement updated successfully",
+            "content": {"application/json": {"example": {
+                "message": "Endorsement updated successfully",
+                "endorsement_id": "550e8400-e29b-41d4-a716-446655440000",
+            }}}
+        },
+        404: {
+            "description": "Endorsement not found",
+            "content": {"application/json": {"example": {"detail": "Endorsement not found"}}},
+        },
+        500: {
+            "description": "Server error",
+            "content": {"application/json": {"example": {"detail": "Error updating endorsement: some error"}}},
+        },
+    },
+)
+def review_endorsement(
+    session: SessionDep,
+    request: GetEndorsementResponse = Form(...),
+):
+    try:
+        endorsement = session.exec(select(endorsements).where(endorsements.endorsement_id == request.endorsement_id)).first()
+
+        if not endorsement:
+            raise HTTPException(status_code=404, detail="Endorsement not found")
+
+        endorsement.review = True
+        endorsement.approve = request.approve
+
+        session.add(endorsement)
+        session.commit()
+        session.refresh(endorsement)
+
+        return {
+            "message": "Endorsement updated successfully",
+            "endorsement_id": endorsement.endorsement_id,
+        }
+
+    except Exception as e:
+        session.rollback()
+        raise HTTPException(status_code=500, detail=f"Error updating endorsement: {e}")
