@@ -1,0 +1,14 @@
+[project]
+name = "wushu-backend"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "bcrypt>=4.3.0",
+    "boto3>=1.37.17",
+    "fastapi[standard]>=0.115.11",
+    "psycopg2-binary>=2.9.10",
+    "pydantic-settings>=2.8.1",
+    "sqlmodel>=0.0.24",
+]
