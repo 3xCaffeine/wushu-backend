@@ -4,9 +4,10 @@ from app.core.models import (
     UserCreate,
     LoginRequest,
     AthleteResponse, 
-    TournamentResponse, 
+    TournamentDetails, 
     GetEndorsementResponse, 
     EndorsementReviewRequest, 
+    InstitutionUpdateRequest,
     institution, 
     tournament, 
     endorsements, 
@@ -26,6 +27,7 @@ def get_user_by_email(email: str, session: SessionDep) -> institution | None:
     return session_user
 
 
+# create institute
 @router.post(
     "/register",
     summary="Register a new user",
@@ -44,9 +46,9 @@ def get_user_by_email(email: str, session: SessionDep) -> institution | None:
         },
     },
 )
-def register_user(session: SessionDep, user: UserCreate = Form(...)):
+def register_institute(session: SessionDep, user: UserCreate = Form(...)):
     hashed_password = hash_password(user.password)
-    uid = str(uuid4())
+    uid = uuid4()
     try:
         existing_user = get_user_by_email(email=user.email, session=session)
         if existing_user:
@@ -87,7 +89,7 @@ def register_user(session: SessionDep, user: UserCreate = Form(...)):
         },
     },
 )
-def login_user(session: SessionDep, loginrequest: LoginRequest = Form(...)):
+def login_institute(session: SessionDep, loginrequest: LoginRequest = Form(...)):
     try:
         credentials = get_user_by_email(email=loginrequest.email, session=session)
         if not credentials or not verify_password(loginrequest.password, credentials.password):
@@ -97,8 +99,43 @@ def login_user(session: SessionDep, loginrequest: LoginRequest = Form(...)):
         raise HTTPException(status_code=500, detail=f"Error logging in: {e}")
 
 
+@router.patch(
+    "/updateDetails",
+    summary="Update an institution's name and contact",
+    responses={
+        200: {"description": "Institution updated successfully"},
+        404: {"description": "Institution not found"},
+        500: {"description": "Error updating institution"},
+    }
+)
+def update_institute(
+    session: SessionDep,
+    request: InstitutionUpdateRequest = Form(...)
+):
+    try:
+        institution = session.exec(
+            select(institution).where(institution.institute_id == request.institute_id)
+        ).first()
+
+        if not institution:
+            raise HTTPException(status_code=404, detail="Institution not found")
+
+        institution.name = request.name
+        institution.contact = request.contact
+
+        session.add(institution)
+        session.commit()
+        session.refresh(institution)
+
+        return {"message": "Institution updated successfully"}
+
+    except Exception as e:
+        session.rollback()
+        raise HTTPException(status_code=500, detail=f"Error updating institution: {e}")
+
+
 @router.get(
-    "/searchInstitution",
+    "/getDetails",
     summary="Fetch institutes against a name",
     responses={
         200: {
@@ -121,7 +158,7 @@ def login_user(session: SessionDep, loginrequest: LoginRequest = Form(...)):
         },
     },
 )
-def search_institutions(session: SessionDep, name: str = ""):
+def search_institutes(session: SessionDep, name: str = Form(...)):
     try:
         stmt = select(institution).where(institution.name.ilike(f"%{name}%"))
         institutions = session.exec(stmt).all()
@@ -135,6 +172,8 @@ def search_institutions(session: SessionDep, name: str = ""):
         raise HTTPException(status_code=500, detail=f"Error fetching institutions: {e}")
 
 
+
+## Endorsement Routes
 @router.get(
     "/getEndorsements",
     summary="Fetch pending endorsements with athlete and tournament details",
@@ -173,7 +212,7 @@ def get_pending_endorsements(session: SessionDep, endorser_id: UUID = Form(...))
                     contact=row.contact,
                     matches_played=row.matches_played,
                 ),
-                tournament=TournamentResponse(
+                tournament=TournamentDetails(
                     division=row.division,
                     stage=row.stage,
                     name=row.tournament_name,

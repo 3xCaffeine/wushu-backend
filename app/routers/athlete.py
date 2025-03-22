@@ -6,11 +6,12 @@ from app.core.models import (
     athlete, 
     endorsements,
     UpdateAthleteRequest,
+    AthleteResponse,
     AthleteEndorsementRequest
 )
 from sqlmodel import select
 from app.routers.deps import SessionDep
-from uuid import uuid4
+from uuid import uuid4, UUID
 
 router = APIRouter(prefix="/athlete", tags=["Athlete"])
 
@@ -39,9 +40,9 @@ def get_user_by_email(email: str, session: SessionDep) -> athlete | None:
         },
     },
 )
-def register_user(session: SessionDep, user: UserCreate = Form(...)):
+def register_athlete(session: SessionDep, user: UserCreate = Form(...)):
     hashed_password = hash_password(user.password)
-    uid = str(uuid4())
+    uid = uuid4()
     try:
         existing_user = get_user_by_email(email=user.email, session=session)
         if existing_user:
@@ -51,14 +52,14 @@ def register_user(session: SessionDep, user: UserCreate = Form(...)):
             )
 
         new_user = athlete(
-            user_id=uid,
-            email=user.email,
-            username=user.name,
+            athlete_id=uid,
+            contact=user.email,
+            name=user.name,
             password=hashed_password,
         )
         session.add(new_user)
         session.commit()
-        return {"message": "User registered successfully", "user_id": uid, "username": user.username}
+        return {"message": "User registered successfully", "user_id": uid, "username": user.name}
     except Exception as e:
         session.rollback()
         raise HTTPException(status_code=500, detail=f"Error registering user: {e}")
@@ -82,7 +83,7 @@ def register_user(session: SessionDep, user: UserCreate = Form(...)):
         },
     },
 )
-def login_user(session: SessionDep, loginrequest: LoginRequest = Form(...)):
+def login_athlete(session: SessionDep, loginrequest: LoginRequest = Form(...)):
     try:
         credentials = get_user_by_email(email=loginrequest.email, session=session)
         if not credentials or not verify_password(loginrequest.password, credentials.password):
@@ -92,6 +93,59 @@ def login_user(session: SessionDep, loginrequest: LoginRequest = Form(...)):
         raise HTTPException(status_code=500, detail=f"Error logging in: {e}")
 
 
+@router.get(
+    "/getDetails",
+summary="Fetch athlete details by athlete_id",
+    response_model=AthleteResponse,
+    responses={
+        200: {
+            "description": "Athlete details retrieved successfully",
+            "content": {"application/json": {"example": {
+                "athlete_id": "550e8400-e29b-41d4-a716-446655440000",
+                "name": "John Doe",
+                "age": 25,
+                "gender": "Male",
+                "division": "Senior",
+                "contact": "1234567890",
+                "matches_played": 10
+            }}}
+        },
+        404: {
+            "description": "Athlete not found",
+            "content": {"application/json": {"example": {"detail": "Athlete not found"}}},
+        },
+        500: {
+            "description": "Server error",
+            "content": {"application/json": {"example": {"detail": "Error fetching athlete: some error"}}},
+        },
+    },
+)
+def get_athlete_details(
+    session: SessionDep,
+    athlete_id: UUID = Form(...),
+
+):
+    try:
+        athlete = session.exec(select(athlete).where(athlete.athlete_id == athlete_id)).first()
+
+        if not athlete:
+            raise HTTPException(status_code=404, detail="Athlete not found")
+
+        return {
+            "athlete_id": athlete.athlete_id,
+            "name": athlete.name,
+            "age": athlete.age,
+            "gender": athlete.gender,
+            "division": athlete.division,
+            "contact": athlete.contact,
+            "matches_played": athlete.matches_played,
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching athlete: {e}")
+
+
+# actually creation of athlete profile
 @router.post(
     "/updateDetails",
     summary="Update an athlete's details",
@@ -141,6 +195,7 @@ def update_athlete_details(
         raise HTTPException(status_code=500, detail=f"Error updating athlete: {e}")
 
 
+## Endorsement Routes
 @router.post(
     "/requestEndorsement",
     summary="Endorsement request made to an institute from an athlete",
@@ -180,3 +235,7 @@ def create_endorsement_request(session: SessionDep, request: AthleteEndorsementR
     except Exception as e:
         session.rollback()
         raise HTTPException(status_code=500, detail=f"Error creating endorsement request: {e}")
+    
+#TODO
+#getparticipation
+

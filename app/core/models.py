@@ -28,16 +28,17 @@ class AthleteResponse(BaseModel):
     contact: str
     matches_played: int
 
-class TournamentResponse(BaseModel):
+class TournamentDetails(BaseModel):
     division: str
     stage: int
-    start_date: str
-    end_date: str
+    name: str
+    start_date: datetime
+    end_date: datetime
     location: str
 
 class GetEndorsementResponse(BaseModel):
     athlete: AthleteResponse
-    tournament: TournamentResponse
+    tournament: TournamentDetails
 
 class EndorsementReviewRequest(BaseModel):
     endorsement_id: UUID
@@ -52,9 +53,32 @@ class UpdateAthleteRequest(BaseModel):
     contact: Optional[str] = None
     password: Optional[str] = None
 
+class InstitutionUpdateRequest(BaseModel):
+    institute_id: UUID
+    contact: str
+    name: str
+
+class GetTournamentDetailsResponse(BaseModel):
+    tournament_id: UUID
+    division: str
+    stage: int
+    name: str
+    start_date: datetime
+    end_date: datetime
+    location: str
+    status: bool
+
+class TournamentResultsRequest(BaseModel):
+    tournament_id: UUID
+    winner: str
+    runnerup: str
+    winnerscore: int
+    runnerscore: int
+
+
 # Database Table Models
 class endorsements(SQLModel, table=True):
-    endorsement_id: UUID = Field(default_factory=UUID, primary_key=True)
+    endorsement_id: UUID = Field(primary_key=True)
     tournament_id: UUID = Field(foreign_key="tournament.tournament_id")
     endorser_id: UUID = Field(foreign_key="institution.institute_id")
     athlete_id: UUID = Field(foreign_key="athlete.athlete_id")
@@ -62,7 +86,7 @@ class endorsements(SQLModel, table=True):
     approve: bool = Field(default=False)
 
 class athlete(SQLModel, table=True):
-    athlete_id: UUID = Field(default_factory=UUID, primary_key=True)
+    athlete_id: UUID = Field(primary_key=True)
     name: str
     age: int
     gender: str
@@ -72,12 +96,12 @@ class athlete(SQLModel, table=True):
     matches_played: int = Field(default=0)
 
 class tournament(SQLModel, table=True):
-    tournament_id: UUID = Field(default_factory=UUID, primary_key=True)
+    tournament_id: UUID = Field(primary_key=True)
     division: str
     stage: int
     name: str
-    winnerscore: int
-    runnerscore: int
+    winnerscore: Optional[int] = Field(default=0)
+    runnerscore: Optional[int] = Field(default=0)
     start_date: datetime
     end_date: datetime
     location: str
@@ -86,7 +110,7 @@ class tournament(SQLModel, table=True):
     ongoing: bool = Field(default=True)
 
 class institution(SQLModel, table=True):
-    institute_id: UUID = Field(default_factory=UUID, primary_key=True)
+    institute_id: UUID = Field(primary_key=True)
     name: str
     contact: str
     password: str
