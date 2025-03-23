@@ -149,7 +149,7 @@ def get_athlete_details(session: SessionDep, athlete_id: UUID = Form(...)):
 
 
 # actually creation of athlete profile
-@router.post(
+@router.patch(
     "/updateDetails",
     summary="Update an athlete's details",
     responses={
