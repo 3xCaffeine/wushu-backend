@@ -58,7 +58,7 @@ class InstitutionUpdateRequest(BaseModel):
     contact: str
     name: str
 
-class GetTournamentDetailsResponse(BaseModel):
+class GetOngoingTournamentDetailsResponse(BaseModel):
     tournament_id: UUID
     division: str
     stage: int
@@ -67,6 +67,19 @@ class GetTournamentDetailsResponse(BaseModel):
     end_date: datetime
     location: str
     status: bool
+
+class GetAllTournamentDetailsResponse(BaseModel):
+    division: str
+    stage: int
+    name: str
+    winner: Optional[str] = None
+    runnerup: Optional[str] = None
+    winnerscore: Optional[int] = 0
+    runnerscore: Optional[int] = 0
+    start_date: datetime
+    end_date: datetime
+    location: str
+    archived: bool
 
 class TournamentResultsRequest(BaseModel):
     tournament_id: UUID

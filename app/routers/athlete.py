@@ -120,16 +120,19 @@ summary="Fetch athlete details by athlete_id",
         },
     },
 )
-def get_athlete_details(
-    session: SessionDep,
-    athlete_id: UUID = Form(...),
-
-):
+def get_athlete_details(session: SessionDep, athlete_id: UUID = Form(...)):
     try:
         athlete = session.exec(select(athlete).where(athlete.athlete_id == athlete_id)).first()
 
         if not athlete:
             raise HTTPException(status_code=404, detail="Athlete not found")
+        
+        endorsement_count = session.exec(
+            select(endorsements).where(
+                endorsements.athlete_id == athlete_id,
+                endorsements.approve == True
+            ).count()
+        ).scalar() or 0
 
         return {
             "athlete_id": athlete.athlete_id,
@@ -138,7 +141,7 @@ def get_athlete_details(
             "gender": athlete.gender,
             "division": athlete.division,
             "contact": athlete.contact,
-            "matches_played": athlete.matches_played,
+            "matches_played": endorsement_count,
         }
 
     except Exception as e:

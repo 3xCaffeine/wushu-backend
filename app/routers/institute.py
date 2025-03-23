@@ -275,3 +275,46 @@ def review_endorsement(
     except Exception as e:
         session.rollback()
         raise HTTPException(status_code=500, detail=f"Error updating endorsement: {e}")
+    
+
+@router.get(
+    "/getApprovedAthletes",
+    summary="Fetch approved athletes and their ongoing tournaments for a given institution",
+    response_model=List[AthleteResponse],
+    responses={
+        200: {"description": "Approved athletes retrieved successfully"},
+        404: {"description": "No approved athletes or tournaments found"},
+        500: {"description": "Error fetching data"},
+    }
+)
+def get_approved_athletes(
+    institute_id: UUID,
+    session: SessionDep,
+):
+    try:
+        # Query: Get all approved endorsements with matching athlete_id and ongoing tournaments
+        subquery = (
+            select(endorsements.athlete_id)
+            .join(tournament, endorsements.tournament_id == tournament.tournament_id)
+            .where(
+                endorsements.institute_id == institute_id,
+                endorsements.approve == True,
+                tournament.ongoing == True
+            )
+            .distinct()
+        )
+
+        # Fetch unique athletes from the endorsement results
+        athletes = session.exec(
+            select(athlete)
+            .where(athlete.athlete_id.in_(subquery))
+        ).all()
+
+        if not athletes:
+            raise HTTPException(status_code=404, detail="No matching records found")
+
+        return {"athletes": athletes}
+
+    except Exception as e:
+        session.rollback()
+        raise HTTPException(status_code=500, detail=f"Error fetching records: {e}")

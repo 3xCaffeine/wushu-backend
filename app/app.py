@@ -28,5 +28,6 @@ def create_app() -> FastAPI:
 
     app.include_router(athlete.router)
     app.include_router(institute.router)
+    app.include_router(tournament.router)
 
     return app
