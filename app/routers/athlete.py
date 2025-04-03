@@ -17,9 +17,13 @@ router = APIRouter(prefix="/athlete", tags=["Athlete"])
 
 
 def get_user_by_email(email: str, session: SessionDep) -> athlete | None:
-    statement = select(athlete).where(athlete.email == email)
-    session_user = session.exec(statement).first()
-    return session_user
+    try:
+        statement = select(athlete).where(athlete.contact == email)
+        session_user = session.exec(statement).first()
+        return session_user
+    except Exception as e:
+        print(f"Error: {e}")
+        raise
 
 
 @router.post(
@@ -88,7 +92,7 @@ def login_athlete(session: SessionDep, loginrequest: LoginRequest = Form(...)):
         credentials = get_user_by_email(email=loginrequest.email, session=session)
         if not credentials or not verify_password(loginrequest.password, credentials.password):
             raise HTTPException(status_code=401, detail="Invalid credentials")
-        return {"message": "Login successful", "user_id": credentials.user_id, "username": credentials.username}
+        return {"message": "Login successful", "user_id": credentials.athlete_id, "username": credentials.name}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error logging in: {e}")
 
@@ -238,7 +242,3 @@ def create_endorsement_request(session: SessionDep, request: AthleteEndorsementR
     except Exception as e:
         session.rollback()
         raise HTTPException(status_code=500, detail=f"Error creating endorsement request: {e}")
-    
-#TODO
-#getparticipation
-

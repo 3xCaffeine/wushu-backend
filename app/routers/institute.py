@@ -21,28 +21,32 @@ from uuid import uuid4, UUID
 router = APIRouter(prefix="/institute", tags=["Institution"])
 
 
-def get_user_by_email(email: str, session: SessionDep) -> institution | None:
-    statement = select(institution).where(institution.email == email)
-    session_user = session.exec(statement).first()
-    return session_user
+def get_institute_by_email(email: str, session: SessionDep) -> institution | None:
+    try:
+        statement = select(institution).where(institution.contact == email)
+        session_user = session.exec(statement).first()
+        return session_user
+    except Exception as e:
+        print(f"Error: {e}")
+        raise
 
 
 # create institute
 @router.post(
     "/register",
-    summary="Register a new user",
+    summary="Register a new institute",
     responses={
         201: {
-            "description": "User registered successfully",
-            "content": {"application/json": {"example": {"message": "User registered successfully", "user_id": "uuid"}}},
+            "description": "Institute registered successfully",
+            "content": {"application/json": {"example": {"message": "Institute registered successfully", "user_id": "uuid"}}},
         },
         400: {
-            "description": "User already exists",
-            "content": {"application/json": {"example": {"detail": "User already exists"}}},
+            "description": "Institute already exists",
+            "content": {"application/json": {"example": {"detail": "Institute already exists"}}},
         },
         500: {
-            "description": "Server error during user registration",
-            "content": {"application/json": {"example": {"detail": "Error registering user: ERROR"}}},
+            "description": "Server error during institute registration",
+            "content": {"application/json": {"example": {"detail": "Error registering institute: ERROR"}}},
         },
     },
 )
@@ -50,7 +54,7 @@ def register_institute(session: SessionDep, user: UserCreate = Form(...)):
     hashed_password = hash_password(user.password)
     uid = uuid4()
     try:
-        existing_user = get_user_by_email(email=user.email, session=session)
+        existing_user = get_institute_by_email(email=user.email, session=session)
         if existing_user:
             raise HTTPException(
                 status_code=400,
@@ -58,26 +62,26 @@ def register_institute(session: SessionDep, user: UserCreate = Form(...)):
             )
 
         new_user = institution(
-            user_id=uid,
-            email=user.email,
-            username=user.name,
+            institute_id=uid,
+            contact=user.email,
+            name=user.name,
             password=hashed_password,
         )
         session.add(new_user)
         session.commit()
-        return {"message": "User registered successfully", "user_id": uid, "username": user.username}
+        return {"message": "Institute registered successfully", "institute_id": uid, "username": user.name}
     except Exception as e:
         session.rollback()
-        raise HTTPException(status_code=500, detail=f"Error registering user: {e}")
+        raise HTTPException(status_code=500, detail=f"Error registering institute: {e}")
 
 
 @router.post(
     "/login",
-    summary="Authenticate user and return user_id",
+    summary="Authenticate Institute and return user_id",
     responses={
         200: {
             "description": "Login successful",
-            "content": {"application/json": {"example": {"message": "Login successful", "user_id": "uuid"}}},
+            "content": {"application/json": {"example": {"message": "Login successful", "institute_id": "uuid"}}},
         },
         401: {
             "description": "Invalid credentials",
@@ -91,10 +95,11 @@ def register_institute(session: SessionDep, user: UserCreate = Form(...)):
 )
 def login_institute(session: SessionDep, loginrequest: LoginRequest = Form(...)):
     try:
-        credentials = get_user_by_email(email=loginrequest.email, session=session)
+        credentials = get_institute_by_email(email=loginrequest.email, session=session)
         if not credentials or not verify_password(loginrequest.password, credentials.password):
             raise HTTPException(status_code=401, detail="Invalid credentials")
-        return {"message": "Login successful", "user_id": credentials.user_id, "username": credentials.username}
+        
+        return {"message": "Login successful", "user_id": credentials.institute_id, "username": credentials.name}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error logging in: {e}")
 
@@ -113,19 +118,19 @@ def update_institute(
     request: InstitutionUpdateRequest = Form(...)
 ):
     try:
-        institution = session.exec(
+        institutions = session.exec(
             select(institution).where(institution.institute_id == request.institute_id)
         ).first()
 
-        if not institution:
+        if not institutions:
             raise HTTPException(status_code=404, detail="Institution not found")
 
-        institution.name = request.name
-        institution.contact = request.contact
+        institutions.name = request.name
+        institutions.contact = request.contact
 
-        session.add(institution)
+        session.add(institutions)
         session.commit()
-        session.refresh(institution)
+        session.refresh(institutions)
 
         return {"message": "Institution updated successfully"}
 
