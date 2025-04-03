@@ -1,0 +1,7 @@
+wushu-backend.rycerz.es {
+    reverse_proxy api:5000
+}
+
+wushu.rycerz.es {
+    reverse_proxy host.docker.internal:3000
+}
