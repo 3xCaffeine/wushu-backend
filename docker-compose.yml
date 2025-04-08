@@ -11,6 +11,8 @@ services:
       - caddy_data:/data
     networks:
       - app_network
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
   api:
     build:

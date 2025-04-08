@@ -3,5 +3,13 @@ wushu-backend.rycerz.es {
 }
 
 wushu.rycerz.es {
+    reverse_proxy host.docker.internal:3001
+}
+
+api.rycerz.es {
+    reverse_proxy host.docker.internal:8000
+}
+
+chat.rycerz.es {
     reverse_proxy host.docker.internal:3000
 }

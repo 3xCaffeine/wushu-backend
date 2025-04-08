@@ -126,9 +126,9 @@ summary="Fetch athlete details by athlete_id",
 )
 def get_athlete_details(session: SessionDep, athlete_id: UUID = Form(...)):
     try:
-        athlete = session.exec(select(athlete).where(athlete.athlete_id == athlete_id)).first()
+        existing_athlete = session.exec(select(athlete).where(athlete.athlete_id == athlete_id)).first()
 
-        if not athlete:
+        if not existing_athlete:
             raise HTTPException(status_code=404, detail="Athlete not found")
         
         endorsement_count = session.exec(
@@ -139,12 +139,12 @@ def get_athlete_details(session: SessionDep, athlete_id: UUID = Form(...)):
         ).scalar() or 0
 
         return {
-            "athlete_id": athlete.athlete_id,
-            "name": athlete.name,
-            "age": athlete.age,
-            "gender": athlete.gender,
-            "division": athlete.division,
-            "contact": athlete.contact,
+            "athlete_id": existing_athlete.athlete_id,
+            "name": existing_athlete.name,
+            "age": existing_athlete.age,
+            "gender": existing_athlete.gender,
+            "division": existing_athlete.division,
+            "contact": existing_athlete.contact,
             "matches_played": endorsement_count,
         }
 
@@ -179,22 +179,22 @@ def update_athlete_details(
     request: UpdateAthleteRequest = Form(...),
 ):
     try:
-        athlete = session.exec(select(athlete).where(athlete.athlete_id == request.athlete_id)).first()
+        updated_athlete = session.exec(select(athlete).where(athlete.athlete_id == request.athlete_id)).first()
 
-        if not athlete:
+        if not updated_athlete:
             raise HTTPException(status_code=404, detail="Athlete not found")
 
         update_fields = request.model_dump(exclude_unset=True)
         for field, value in update_fields.items():
-            setattr(athlete, field, value)
+            setattr(updated_athlete, field, value)
 
-        session.add(athlete)
+        session.add(updated_athlete)
         session.commit()
-        session.refresh(athlete)
+        session.refresh(updated_athlete)
 
         return {
             "message": "Athlete updated successfully",
-            "athlete_id": athlete.athlete_id,
+            "athlete_id": updated_athlete.athlete_id,
         }
 
     except Exception as e:

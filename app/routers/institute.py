@@ -205,7 +205,7 @@ def get_pending_endorsements(session: SessionDep, endorser_id: UUID = Form(...))
         if not results:
             raise HTTPException(status_code=404, detail="No pending endorsementss found")
 
-        endorsements = [
+        endorsement_details = [
             GetEndorsementResponse(
                 endorsements_id=row.endorsements_id,
                 match_id=row.match_id,
@@ -229,7 +229,7 @@ def get_pending_endorsements(session: SessionDep, endorser_id: UUID = Form(...))
             for row in results
         ]
 
-        return endorsements
+        return endorsement_details
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching endorsements: {e}")
 

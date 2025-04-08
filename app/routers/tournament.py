@@ -4,6 +4,7 @@ from app.core.models import (
     GetOngoingTournamentDetailsResponse, 
     GetAllTournamentDetailsResponse,
     tournament,
+    endorsements,
     TournamentResultsRequest,
     TournamentDetails
 )
@@ -99,10 +100,7 @@ def get_all_tournaments(session: SessionDep):
         },
     },
 )
-def get_ongoing_tournaments(
-    session: SessionDep,
-    athlete_id: UUID = Form(...),
-):
+def get_ongoing_tournaments(session: SessionDep, athlete_id: UUID = Form(...)):
     try:
         tournaments = session.exec(select(tournament).where(tournament.ongoing == True)).all()
 
@@ -110,12 +108,12 @@ def get_ongoing_tournaments(
             return []
 
         response = []
-        for tournament in tournaments:
+        for existing_tournament in tournaments:
             
             endorsement = session.exec(
-                select(endorsement)
-                .where(endorsement.tournament_id == tournament.tournament_id)
-                .where(endorsement.athlete_id == athlete_id)
+                select(endorsements)
+                .where(endorsements.tournament_id == existing_tournament.tournament_id)
+                .where(endorsements.athlete_id == athlete_id)
             ).first()
 
             if not endorsement or (endorsement.review and not endorsement.approve):
@@ -124,13 +122,13 @@ def get_ongoing_tournaments(
                 status = True
 
             response.append({
-                "tournament_id": tournament.tournament_id,
-                "name": tournament.name,
-                "division": tournament.division,
-                "stage": tournament.stage,
-                "start_date": tournament.start_date.isoformat(),
-                "end_date": tournament.end_date.isoformat(),
-                "location": tournament.location,
+                "tournament_id": existing_tournament.tournament_id,
+                "name": existing_tournament.name,
+                "division": existing_tournament.division,
+                "stage": existing_tournament.stage,
+                "start_date": existing_tournament.start_date.isoformat(),
+                "end_date": existing_tournament.end_date.isoformat(),
+                "location": existing_tournament.location,
                 "status": status
             })
 
@@ -189,20 +187,20 @@ def update_tournament_results(
     request: TournamentResultsRequest = Form(...),
 ):
     try:
-        tournament = session.exec(select(tournament).where(tournament.tournament_id == request.tournament_id)).first()
+        existing_tournament = session.exec(select(tournament).where(tournament.tournament_id == request.tournament_id)).first()
 
-        if not tournament:
+        if not existing_tournament:
             raise HTTPException(status_code=404, detail="Tournament not found")
 
-        tournament.winner = request.winner
-        tournament.runnerup = request.runnerup
-        tournament.winnerscore = request.winnerscore
-        tournament.runnerscore = request.runnerscore
-        tournament.ongoing = False
+        existing_tournament.winner = request.winner
+        existing_tournament.runnerup = request.runnerup
+        existing_tournament.winnerscore = request.winnerscore
+        existing_tournament.runnerscore = request.runnerscore
+        existing_tournament.ongoing = False
 
-        session.add(tournament)
+        session.add(existing_tournament)
         session.commit()
-        session.refresh(tournament)
+        session.refresh(existing_tournament)
 
         return {"message": "Tournament updated successfully"}
 
