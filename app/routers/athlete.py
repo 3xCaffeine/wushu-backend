@@ -10,6 +10,7 @@ from app.core.models import (
     AthleteEndorsementRequest
 )
 from sqlmodel import select
+from sqlalchemy import func
 from app.routers.deps import SessionDep
 from uuid import uuid4, UUID
 
@@ -131,12 +132,13 @@ def get_athlete_details(session: SessionDep, athlete_id: UUID = Form(...)):
         if not existing_athlete:
             raise HTTPException(status_code=404, detail="Athlete not found")
         
+        
         endorsement_count = session.exec(
-            select(endorsements).where(
+            select(func.count()).where(
                 endorsements.athlete_id == athlete_id,
                 endorsements.approve == True
-            ).count()
-        ).scalar() or 0
+            )
+        ).first() or 0
 
         return {
             "athlete_id": existing_athlete.athlete_id,
