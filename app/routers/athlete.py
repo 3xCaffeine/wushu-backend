@@ -2,12 +2,12 @@ from fastapi import APIRouter, HTTPException, Form
 from app.core.utils import hash_password, verify_password
 from app.core.models import (
     UserCreate,
-    LoginRequest, 
-    athlete, 
+    LoginRequest,
+    athlete,
     endorsements,
     UpdateAthleteRequest,
     AthleteResponse,
-    AthleteEndorsementRequest
+    AthleteEndorsementRequest,
 )
 from sqlmodel import select
 from sqlalchemy import func
@@ -33,15 +33,28 @@ def get_user_by_email(email: str, session: SessionDep) -> athlete | None:
     responses={
         201: {
             "description": "User registered successfully",
-            "content": {"application/json": {"example": {"message": "User registered successfully", "user_id": "uuid"}}},
+            "content": {
+                "application/json": {
+                    "example": {
+                        "message": "User registered successfully",
+                        "user_id": "uuid",
+                    }
+                }
+            },
         },
         400: {
             "description": "User already exists",
-            "content": {"application/json": {"example": {"detail": "User already exists"}}},
+            "content": {
+                "application/json": {"example": {"detail": "User already exists"}}
+            },
         },
         500: {
             "description": "Server error during user registration",
-            "content": {"application/json": {"example": {"detail": "Error registering user: ERROR"}}},
+            "content": {
+                "application/json": {
+                    "example": {"detail": "Error registering user: ERROR"}
+                }
+            },
         },
     },
 )
@@ -64,7 +77,11 @@ def register_athlete(session: SessionDep, user: UserCreate = Form(...)):
         )
         session.add(new_user)
         session.commit()
-        return {"message": "User registered successfully", "user_id": uid, "username": user.name}
+        return {
+            "message": "User registered successfully",
+            "user_id": uid,
+            "username": user.name,
+        }
     except Exception as e:
         session.rollback()
         raise HTTPException(status_code=500, detail=f"Error registering user: {e}")
@@ -76,69 +93,98 @@ def register_athlete(session: SessionDep, user: UserCreate = Form(...)):
     responses={
         200: {
             "description": "Login successful",
-            "content": {"application/json": {"example": {"message": "Login successful", "user_id": "uuid"}}},
+            "content": {
+                "application/json": {
+                    "example": {"message": "Login successful", "user_id": "uuid"}
+                }
+            },
         },
         401: {
             "description": "Invalid credentials",
-            "content": {"application/json": {"example": {"detail": "Invalid credentials"}}},
+            "content": {
+                "application/json": {"example": {"detail": "Invalid credentials"}}
+            },
         },
         500: {
             "description": "Server error during login",
-            "content": {"application/json": {"example": {"detail": "Error logging in: some error"}}},
+            "content": {
+                "application/json": {
+                    "example": {"detail": "Error logging in: some error"}
+                }
+            },
         },
     },
 )
 def login_athlete(session: SessionDep, loginrequest: LoginRequest = Form(...)):
     try:
         credentials = get_user_by_email(email=loginrequest.email, session=session)
-        if not credentials or not verify_password(loginrequest.password, credentials.password):
+        if not credentials or not verify_password(
+            loginrequest.password, credentials.password
+        ):
             raise HTTPException(status_code=401, detail="Invalid credentials")
-        return {"message": "Login successful", "user_id": credentials.athlete_id, "username": credentials.name}
+        return {
+            "message": "Login successful",
+            "user_id": credentials.athlete_id,
+            "username": credentials.name,
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error logging in: {e}")
 
 
 @router.get(
     "/getDetails",
-summary="Fetch athlete details by athlete_id",
+    summary="Fetch athlete details by athlete_id",
     response_model=AthleteResponse,
     responses={
         200: {
             "description": "Athlete details retrieved successfully",
-            "content": {"application/json": {"example": {
-                "athlete_id": "550e8400-e29b-41d4-a716-446655440000",
-                "name": "John Doe",
-                "age": 25,
-                "gender": "Male",
-                "division": "Senior",
-                "contact": "1234567890",
-                "matches_played": 10
-            }}}
+            "content": {
+                "application/json": {
+                    "example": {
+                        "athlete_id": "550e8400-e29b-41d4-a716-446655440000",
+                        "name": "John Doe",
+                        "age": 25,
+                        "gender": "Male",
+                        "division": "Senior",
+                        "contact": "1234567890",
+                        "matches_played": 10,
+                    }
+                }
+            },
         },
         404: {
             "description": "Athlete not found",
-            "content": {"application/json": {"example": {"detail": "Athlete not found"}}},
+            "content": {
+                "application/json": {"example": {"detail": "Athlete not found"}}
+            },
         },
         500: {
             "description": "Server error",
-            "content": {"application/json": {"example": {"detail": "Error fetching athlete: some error"}}},
+            "content": {
+                "application/json": {
+                    "example": {"detail": "Error fetching athlete: some error"}
+                }
+            },
         },
     },
 )
-def get_athlete_details(session: SessionDep, athlete_id: UUID = Form(...)):
+def get_athlete_details(session: SessionDep, athlete_id: UUID):
     try:
-        existing_athlete = session.exec(select(athlete).where(athlete.athlete_id == athlete_id)).first()
+        existing_athlete = session.exec(
+            select(athlete).where(athlete.athlete_id == athlete_id)
+        ).first()
 
         if not existing_athlete:
             raise HTTPException(status_code=404, detail="Athlete not found")
-        
-        
-        endorsement_count = session.exec(
-            select(func.count()).where(
-                endorsements.athlete_id == athlete_id,
-                endorsements.approve == True
-            )
-        ).first() or 0
+
+        endorsement_count = (
+            session.exec(
+                select(func.count()).where(
+                    endorsements.athlete_id == athlete_id, endorsements.approve == True
+                )
+            ).first()
+            or 0
+        )
 
         return {
             "athlete_id": existing_athlete.athlete_id,
@@ -161,18 +207,28 @@ def get_athlete_details(session: SessionDep, athlete_id: UUID = Form(...)):
     responses={
         200: {
             "description": "Athlete updated successfully",
-            "content": {"application/json": {"example": {
-                "message": "Athlete updated successfully",
-                "athlete_id": "550e8400-e29b-41d4-a716-446655440000",
-            }}}
+            "content": {
+                "application/json": {
+                    "example": {
+                        "message": "Athlete updated successfully",
+                        "athlete_id": "550e8400-e29b-41d4-a716-446655440000",
+                    }
+                }
+            },
         },
         404: {
             "description": "Athlete not found",
-            "content": {"application/json": {"example": {"detail": "Athlete not found"}}},
+            "content": {
+                "application/json": {"example": {"detail": "Athlete not found"}}
+            },
         },
         500: {
             "description": "Server error",
-            "content": {"application/json": {"example": {"detail": "Error updating athlete: some error"}}},
+            "content": {
+                "application/json": {
+                    "example": {"detail": "Error updating athlete: some error"}
+                }
+            },
         },
     },
 )
@@ -181,7 +237,9 @@ def update_athlete_details(
     request: UpdateAthleteRequest = Form(...),
 ):
     try:
-        updated_athlete = session.exec(select(athlete).where(athlete.athlete_id == request.athlete_id)).first()
+        updated_athlete = session.exec(
+            select(athlete).where(athlete.athlete_id == request.athlete_id)
+        ).first()
 
         if not updated_athlete:
             raise HTTPException(status_code=404, detail="Athlete not found")
@@ -211,21 +269,35 @@ def update_athlete_details(
     responses={
         201: {
             "description": "Endorsement request successfully created",
-            "content": {"application/json": {"example": {
-                "message": "Endorsement request created successfully",
-            }}}
+            "content": {
+                "application/json": {
+                    "example": {
+                        "message": "Endorsement request created successfully",
+                    }
+                }
+            },
         },
         404: {
             "description": "Athlete or Institution not found",
-            "content": {"application/json": {"example": {"detail": "Athlete not found"}}},
+            "content": {
+                "application/json": {"example": {"detail": "Athlete not found"}}
+            },
         },
         500: {
             "description": "Server error",
-            "content": {"application/json": {"example": {"detail": "Error creating endorsement request: some error"}}},
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Error creating endorsement request: some error"
+                    }
+                }
+            },
         },
     },
 )
-def create_endorsement_request(session: SessionDep, request: AthleteEndorsementRequest = Form(...)):
+def create_endorsement_request(
+    session: SessionDep, request: AthleteEndorsementRequest = Form(...)
+):
     try:
         new_endorse_request = endorsements(
             endorsement_id=uuid4(),
@@ -233,7 +305,7 @@ def create_endorsement_request(session: SessionDep, request: AthleteEndorsementR
             endorser_id=request.institution_id,
             athlete_id=request.athlete_id,
             review=False,
-            approve=False
+            approve=False,
         )
 
         session.add(new_endorse_request)
@@ -243,4 +315,6 @@ def create_endorsement_request(session: SessionDep, request: AthleteEndorsementR
 
     except Exception as e:
         session.rollback()
-        raise HTTPException(status_code=500, detail=f"Error creating endorsement request: {e}")
+        raise HTTPException(
+            status_code=500, detail=f"Error creating endorsement request: {e}"
+        )
