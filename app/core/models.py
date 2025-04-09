@@ -46,7 +46,8 @@ class TournamentDetails(BaseModel):
     location: str
 
 class GetEndorsementResponse(BaseModel):
-    athlete: ApprovedAthleteResponse
+    endorsements_id: UUID
+    athlete: AthleteResponse
     tournament: TournamentDetails
 
 class EndorsementReviewRequest(BaseModel):
@@ -115,7 +116,6 @@ class athlete(SQLModel, table=True):
     division: str
     contact: str
     password: str
-    matches_played: int = Field(default=0)
 
 class tournament(SQLModel, table=True):
     tournament_id: UUID = Field(primary_key=True)

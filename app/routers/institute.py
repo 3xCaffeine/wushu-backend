@@ -4,6 +4,7 @@ from app.core.models import (
     UserCreate,
     LoginRequest,
     TournamentDetails,
+    AthleteResponse,
     ApprovedAthleteResponse,
     GetEndorsementResponse,
     EndorsementReviewRequest,
@@ -14,6 +15,7 @@ from app.core.models import (
     athlete,
 )
 from sqlmodel import select
+from sqlalchemy import func
 from typing import List
 from app.routers.deps import SessionDep
 from uuid import uuid4, UUID
@@ -239,7 +241,6 @@ def get_pending_endorsements(session: SessionDep, endorser_id: UUID):
                 athlete.gender,
                 athlete.division,
                 athlete.contact,
-                athlete.matches_played,
                 tournament.tournament_id,
                 tournament.name.label("tournament_name"),
                 tournament.division,
@@ -256,33 +257,42 @@ def get_pending_endorsements(session: SessionDep, endorser_id: UUID):
         results = session.exec(stmt).all()
 
         if not results:
-            raise HTTPException(
-                status_code=404, detail="No pending endorsements found"
-            )
+            raise HTTPException(status_code=404, detail="No pending endorsements found")
 
-        endorsement_details = [
-            GetEndorsementResponse(
-                endorsements_id=row.endorsement_id,
-                athlete=ApprovedAthleteResponse(
-                    athlete_id=row.athlete_id,
-                    name=row.athlete_name,
-                    age=row.age,
-                    gender=row.gender,
-                    division=row.division,
-                    contact=row.contact,
-                ),
-                tournament=TournamentDetails(
-                    tournament_id=row.tournament_id,
-                    division=row.division,
-                    stage=row.stage,
-                    name=row.tournament_name,
-                    start_date=row.start_date.isoformat(),
-                    end_date=row.end_date.isoformat(),
-                    location=row.location,
-                ),
+        endorsement_details = []
+        for row in results:
+            endorsement_count = (
+                session.exec(
+                    select(func.count()).where(
+                        endorsements.athlete_id == row.athlete_id, 
+                        endorsements.approve == True
+                    )
+                ).first()
+                or 0
             )
-            for row in results
-        ]
+            endorsement_details.append(
+                GetEndorsementResponse(
+                    endorsements_id=row.endorsement_id,
+                    athlete=AthleteResponse(
+                        athlete_id=row.athlete_id,
+                        name=row.athlete_name,
+                        age=row.age,
+                        gender=row.gender,
+                        division=row.division,
+                        contact=row.contact,
+                        matches_played=endorsement_count,
+                    ),
+                    tournament=TournamentDetails(
+                        tournament_id=row.tournament_id,
+                        division=row.division,
+                        stage=row.stage,
+                        name=row.tournament_name,
+                        start_date=row.start_date.isoformat(),
+                        end_date=row.end_date.isoformat(),
+                        location=row.location,
+                    ),
+                )
+            )
 
         return endorsement_details
     except Exception as e:
@@ -320,10 +330,7 @@ def get_pending_endorsements(session: SessionDep, endorser_id: UUID):
         },
     },
 )
-def review_endorsement(
-    session: SessionDep,
-    request: EndorsementReviewRequest = Form(...),
-):
+def review_endorsement(session: SessionDep, request: EndorsementReviewRequest = Form(...)):
     try:
         endorsement = session.exec(
             select(endorsements).where(
