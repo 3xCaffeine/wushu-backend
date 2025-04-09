@@ -21,12 +21,21 @@ class AthleteEndorsementRequest(BaseModel):
     tournament_id: UUID
 
 class AthleteResponse(BaseModel):
+    athlete_id: UUID
     name: str
     age: int
     gender: str
     division: str
     contact: str
     matches_played: int
+    
+class ApprovedAthleteResponse(BaseModel):
+    athlete_id: UUID
+    name: str
+    age: int
+    gender: str
+    division: str
+    contact: str 
 
 class TournamentDetails(BaseModel):
     division: str
@@ -37,7 +46,7 @@ class TournamentDetails(BaseModel):
     location: str
 
 class GetEndorsementResponse(BaseModel):
-    athlete: AthleteResponse
+    athlete: ApprovedAthleteResponse
     tournament: TournamentDetails
 
 class EndorsementReviewRequest(BaseModel):
@@ -46,12 +55,11 @@ class EndorsementReviewRequest(BaseModel):
 
 class UpdateAthleteRequest(BaseModel):
     athlete_id: UUID
-    name: Optional[str] = None
-    age: Optional[int] = None
-    gender: Optional[str] = None
-    division: Optional[str] = None
-    contact: Optional[str] = None
-    password: Optional[str] = None
+    name: Optional[str]
+    age: Optional[int]
+    gender: Optional[str]
+    division: Optional[str]
+    contact: Optional[str]
 
 class InstitutionUpdateRequest(BaseModel):
     institute_id: UUID
@@ -69,6 +77,7 @@ class GetOngoingTournamentDetailsResponse(BaseModel):
     status: bool
 
 class GetAllTournamentDetailsResponse(BaseModel):
+    tournament_id: UUID
     division: str
     stage: int
     name: str

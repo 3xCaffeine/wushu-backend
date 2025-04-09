@@ -3,8 +3,8 @@ from app.core.utils import hash_password, verify_password
 from app.core.models import (
     UserCreate,
     LoginRequest,
-    AthleteResponse,
     TournamentDetails,
+    ApprovedAthleteResponse,
     GetEndorsementResponse,
     EndorsementReviewRequest,
     InstitutionUpdateRequest,
@@ -219,30 +219,28 @@ def search_institutes(session: SessionDep, name: str):
                 status_code=404, detail="No institutions found matching the given name"
             )
 
-        return [{"name": row.name, "contact": row.contact} for row in institutions]
+        return [{"institute_id": row.institute_id, "name": row.name, "contact": row.contact} for row in institutions]
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching institutions: {e}")
 
 
 ## Endorsement Routes
-@router.get(
-    "/getEndorsements",
-    summary="Fetch pending endorsements with athlete and tournament details",
-    response_model=List[GetEndorsementResponse],
-)
+@router.get("/getEndorsements", summary="Fetch pending endorsements with athlete and tournament details", response_model=List[GetEndorsementResponse])
 def get_pending_endorsements(session: SessionDep, endorser_id: UUID):
     try:
         stmt = (
             select(
-                endorsements.endorsements_id,
+                endorsements.endorsement_id,
                 endorsements.tournament_id,
                 athlete.name.label("athlete_name"),
+                athlete.athlete_id,
                 athlete.age,
                 athlete.gender,
                 athlete.division,
                 athlete.contact,
                 athlete.matches_played,
+                tournament.tournament_id,
                 tournament.name.label("tournament_name"),
                 tournament.division,
                 tournament.stage,
@@ -252,31 +250,29 @@ def get_pending_endorsements(session: SessionDep, endorser_id: UUID):
             )
             .join(athlete, endorsements.athlete_id == athlete.athlete_id)
             .join(tournament, endorsements.tournament_id == tournament.tournament_id)
-            .where(
-                endorsements.endorser_id == endorser_id, endorsements.review == False
-            )
+            .where(endorsements.endorser_id == endorser_id, endorsements.review == False)
         )
 
         results = session.exec(stmt).all()
 
         if not results:
             raise HTTPException(
-                status_code=404, detail="No pending endorsementss found"
+                status_code=404, detail="No pending endorsements found"
             )
 
         endorsement_details = [
             GetEndorsementResponse(
-                endorsements_id=row.endorsements_id,
-                match_id=row.match_id,
-                athlete=AthleteResponse(
+                endorsements_id=row.endorsement_id,
+                athlete=ApprovedAthleteResponse(
+                    athlete_id=row.athlete_id,
                     name=row.athlete_name,
                     age=row.age,
                     gender=row.gender,
                     division=row.division,
                     contact=row.contact,
-                    matches_played=row.matches_played,
                 ),
                 tournament=TournamentDetails(
+                    tournament_id=row.tournament_id,
                     division=row.division,
                     stage=row.stage,
                     name=row.tournament_name,
@@ -358,7 +354,7 @@ def review_endorsement(
 @router.get(
     "/getApprovedAthletes",
     summary="Fetch approved athletes and their ongoing tournaments for a given institution",
-    response_model=List[AthleteResponse],
+    response_model=List[ApprovedAthleteResponse],
     responses={
         200: {"description": "Approved athletes retrieved successfully"},
         404: {"description": "No approved athletes or tournaments found"},
@@ -368,26 +364,40 @@ def review_endorsement(
 def get_approved_athletes(institute_id: UUID, session: SessionDep):
     try:
         # Query: Get all approved endorsements with matching athlete_id and ongoing tournaments
-        subquery = (
+        subquery = session.exec(
             select(endorsements.athlete_id)
             .join(tournament, endorsements.tournament_id == tournament.tournament_id)
             .where(
-                endorsements.institute_id == institute_id,
+                endorsements.endorser_id == institute_id,
                 endorsements.approve == True,
                 tournament.ongoing == True,
             )
             .distinct()
-        )
+        ).all()
 
+        if not subquery:
+            return []
+        
         # Fetch unique athletes from the endorsement results
         athletes = session.exec(
             select(athlete).where(athlete.athlete_id.in_(subquery))
         ).all()
 
         if not athletes:
-            raise HTTPException(status_code=404, detail="No matching records found")
+            return []
+        
+        response = [
+            ApprovedAthleteResponse(
+                athlete_id=a.athlete_id,
+                name=a.name,
+                age=a.age,
+                gender=a.gender,
+                division=a.division,
+                contact=a.contact,
+            ) for a in athletes
+        ]
 
-        return {"athletes": athletes}
+        return response
 
     except Exception as e:
         session.rollback()

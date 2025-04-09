@@ -232,10 +232,7 @@ def get_athlete_details(session: SessionDep, athlete_id: UUID):
         },
     },
 )
-def update_athlete_details(
-    session: SessionDep,
-    request: UpdateAthleteRequest = Form(...),
-):
+def update_athlete_details(session: SessionDep, request: UpdateAthleteRequest = Form(...)):
     try:
         updated_athlete = session.exec(
             select(athlete).where(athlete.athlete_id == request.athlete_id)
@@ -302,7 +299,7 @@ def create_endorsement_request(
         new_endorse_request = endorsements(
             endorsement_id=uuid4(),
             tournament_id=request.tournament_id,
-            endorser_id=request.institution_id,
+            endorser_id=request.institute_id,
             athlete_id=request.athlete_id,
             review=False,
             approve=False,
@@ -315,6 +312,4 @@ def create_endorsement_request(
 
     except Exception as e:
         session.rollback()
-        raise HTTPException(
-            status_code=500, detail=f"Error creating endorsement request: {e}"
-        )
+        raise HTTPException(status_code=500, detail=f"Error creating endorsement request: {e}")

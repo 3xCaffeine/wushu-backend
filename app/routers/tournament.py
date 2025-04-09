@@ -66,6 +66,7 @@ def get_all_tournaments(session: SessionDep):
 
         results = [
             GetAllTournamentDetailsResponse(
+                tournament_id=tournament.tournament_id,
                 division=tournament.division,
                 stage=tournament.stage,
                 name=tournament.name,
@@ -93,7 +94,7 @@ def get_all_tournaments(session: SessionDep):
 # Ongoing tournaments pulled for athlete view
 @router.get(
     "/getOngoingTournaments",
-    summary="Fetch ongoing tournaments with status based on athlete endorsements",
+    summary="Fetch ongoing tournaments with status based on athlete endorsement approval",
     response_model=List[GetOngoingTournamentDetailsResponse],
     responses={
         200: {
@@ -134,30 +135,31 @@ def get_ongoing_tournaments(session: SessionDep, athlete_id: UUID):
             return []
 
         response = []
+        has_any_endorsement = False
+        
         for existing_tournament in tournaments:
             endorsement = session.exec(
                 select(endorsements)
                 .where(endorsements.tournament_id == existing_tournament.tournament_id)
                 .where(endorsements.athlete_id == athlete_id)
             ).first()
-
-            if not endorsement or (endorsement.review and not endorsement.approve):
-                status = False
-            else:
-                status = True
-
-            response.append(
-                {
-                    "tournament_id": existing_tournament.tournament_id,
-                    "name": existing_tournament.name,
-                    "division": existing_tournament.division,
-                    "stage": existing_tournament.stage,
-                    "start_date": existing_tournament.start_date.isoformat(),
-                    "end_date": existing_tournament.end_date.isoformat(),
-                    "location": existing_tournament.location,
-                    "status": status,
-                }
-            )
+            if endorsement:
+                has_any_endorsement = True
+                response.append(
+                    {
+                        "tournament_id": existing_tournament.tournament_id,
+                        "name": existing_tournament.name,
+                        "division": existing_tournament.division,
+                        "stage": existing_tournament.stage,
+                        "start_date": existing_tournament.start_date.isoformat(),
+                        "end_date": existing_tournament.end_date.isoformat(),
+                        "location": existing_tournament.location,
+                        "status": endorsement.approve,
+                    }
+                )
+        
+        if not has_any_endorsement:
+            return []
 
         return response
 
